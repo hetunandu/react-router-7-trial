@@ -3,16 +3,22 @@ import { type RouteConfig, index, route, layout, prefix } from "@react-router/de
 export default [
     index("routes/home.tsx"),
     route("about","routes/About.tsx"),
-    route("posts","routes/posts.tsx", [
-        route(":id","routes/post.tsx")
+    
+    // Authentication routes
+    route("login", "routes/login.tsx"),
+    route("signup", "routes/signup.tsx"),
+    
+    // Apps routes (protected)
+    route("apps", "routes/apps.tsx"),
+    route("apps/:id", "routes/apps.$id.tsx"),
+    
+    // Settings routes (protected, with nested admin route)
+    route("settings", "routes/settings.tsx", [
+        route("deployment", "routes/settings.deployment.tsx"),
+        route("auth", "routes/settings.auth.tsx"),
+        route("admin", "routes/settings.admin.tsx"), // Admin only
     ]),
-    // Nested Routes
-    layout("routes/dashboard.tsx",[
-        ...prefix("dashboard", [
-            route("finances","routes/finances.tsx"),
-            route("personal-info","routes/personal-info.tsx")
-        ]),
-    ]),
-    // Catch-all route for unmatched URLs (including Chrome DevTools URLs)
+    
+    // Catch-all route for unmatched URLs
     route("*", "routes/404.tsx")
 ] satisfies RouteConfig;
