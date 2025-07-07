@@ -1,44 +1,89 @@
-import { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useRouteError, useParams } from 'react-router';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { Navigation } from '../components/Navigation';
-import { fetchAppById } from '../services/appsApi';
+import { useApp } from '../lib/queries';
 import type { App } from '../services/appsApi';
 
+export function ErrorBoundary() {
+  const error = useRouteError();
+  const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center py-12">
+          <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+          <p className="text-gray-600 mb-4">{errorMessage}</p>
+          <Link
+            to="/apps"
+            className="text-blue-600 hover:text-blue-500 font-medium"
+          >
+            ← Back to Apps
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppDetailContent() {
-  const { id } = useParams();
-  const [app, setApp] = useState<App | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const params = useParams();
+  const appId = params.id;
+  
+  const { data: app, isLoading, error } = useApp(appId!);
 
-  useEffect(function loadApp() {
-    async function fetchData() {
-      if (!id) {
-        setError('App ID is required');
-        setIsLoading(false);
-        return;
-      }
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="flex items-center justify-center h-96">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
 
-      try {
-        setIsLoading(true);
-        setError('');
-        const data = await fetchAppById(id);
-        
-        if (!data) {
-          setError('App not found');
-        } else {
-          setApp(data);
-        }
-      } catch (err) {
-        setError('Failed to load app details. Please try again.');
-        console.error('Error fetching app:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    
-    fetchData();
-  }, [id]);
+  if (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Failed to load app details';
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
+            <p className="text-gray-600 mb-4">{errorMessage}</p>
+            <Link
+              to="/apps"
+              className="text-blue-600 hover:text-blue-500 font-medium"
+            >
+              ← Back to Apps
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!app) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">App Not Found</h1>
+            <p className="text-gray-600 mb-4">The requested app could not be found.</p>
+            <Link
+              to="/apps"
+              className="text-blue-600 hover:text-blue-500 font-medium"
+            >
+              ← Back to Apps
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getStatusColor = (status: App['status']) => {
     switch (status) {
@@ -77,37 +122,6 @@ function AppDetailContent() {
     
     return stars;
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error || !app) {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center py-12">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Error</h1>
-            <p className="text-gray-600 mb-4">{error || 'App not found'}</p>
-            <Link
-              to="/apps"
-              className="text-blue-600 hover:text-blue-500 font-medium"
-            >
-              ← Back to Apps
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">

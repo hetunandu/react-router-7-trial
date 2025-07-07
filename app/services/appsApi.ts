@@ -90,12 +90,13 @@ const MOCK_APPS: App[] = [
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function fetchApps(): Promise<App[]> {
-  await delay(800); // Simulate network delay
+  await fetch('https://jsonplaceholder.typicode.com/posts');
   return MOCK_APPS;
 }
 
 export async function fetchAppById(id: string): Promise<App | null> {
   await delay(500); // Simulate network delay
+  await fetch(`https://jsonplaceholder.typicode.com/posts/${id}`);
   return MOCK_APPS.find(app => app.id === id) || null;
 }
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { Navigation } from '../components/Navigation';
-import { fetchApps, searchApps } from '../services/appsApi';
+import { useApps, useAppsSearch } from '../lib/queries';
 import type { App } from '../services/appsApi';
 
 function AppCard({ app }: { app: App }) {
@@ -26,6 +26,7 @@ function AppCard({ app }: { app: App }) {
   return (
     <Link
       to={`/apps/${app.id}`}
+      prefetch='intent'
       className="block bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow duration-200"
     >
       <div className="p-6">
@@ -69,61 +70,17 @@ function AppCard({ app }: { app: App }) {
 }
 
 function AppsContent() {
-  const [apps, setApps] = useState<App[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(function loadApps() {
-    async function fetchData() {
-      try {
-        setIsLoading(true);
-        setError('');
-        const data = await fetchApps();
-        setApps(data);
-      } catch (err) {
-        setError('Failed to load apps. Please try again.');
-        console.error('Error fetching apps:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    
-    fetchData();
-  }, []);
-
-  useEffect(function handleSearch() {
-    async function performSearch() {
-      if (!searchQuery.trim()) {
-        try {
-          setIsSearching(true);
-          const data = await fetchApps();
-          setApps(data);
-        } catch (err) {
-          setError('Failed to load apps. Please try again.');
-        } finally {
-          setIsSearching(false);
-        }
-        return;
-      }
-
-      try {
-        setIsSearching(true);
-        setError('');
-        const results = await searchApps(searchQuery);
-        setApps(results);
-      } catch (err) {
-        setError('Search failed. Please try again.');
-        console.error('Error searching apps:', err);
-      } finally {
-        setIsSearching(false);
-      }
-    }
-
-    const debounceTimer = setTimeout(performSearch, 300);
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery]);
+  
+  // Use TanStack Query hooks for data fetching
+  const { data: allApps, isLoading: isLoadingAll, error: errorAll } = useApps();
+  const { data: searchResults, isLoading: isSearching, error: searchError } = useAppsSearch(searchQuery);
+  
+  // Determine which data to use based on search query
+  const hasSearchQuery = searchQuery.trim().length > 0;
+  const apps = hasSearchQuery ? searchResults : allApps;
+  const isLoading = hasSearchQuery ? isSearching : isLoadingAll;
+  const error = hasSearchQuery ? searchError : errorAll;
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
@@ -139,6 +96,8 @@ function AppsContent() {
       </div>
     );
   }
+
+  const errorMessage = error instanceof Error ? error.message : 'An error occurred';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -160,7 +119,7 @@ function AppsContent() {
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <span className="text-gray-400">🔍</span>
             </div>
-            {isSearching && (
+            {isSearching && hasSearchQuery && (
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                 <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
               </div>
@@ -170,19 +129,19 @@ function AppsContent() {
 
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
-            <p className="text-sm text-red-600">{error}</p>
+            <p className="text-sm text-red-600">{errorMessage}</p>
           </div>
         )}
 
-        {apps.length === 0 && !isLoading && !isSearching ? (
+        {apps && apps.length === 0 && !isLoading && !isSearching ? (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">
-              {searchQuery ? 'No apps found matching your search.' : 'No apps available.'}
+              {hasSearchQuery ? 'No apps found matching your search.' : 'No apps available.'}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {apps.map((app) => (
+            {apps?.map((app) => (
               <AppCard key={app.id} app={app} />
             ))}
           </div>
